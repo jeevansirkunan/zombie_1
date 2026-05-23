@@ -37,10 +37,11 @@ body {
   font-family: 'Comic Sans MS', 'Chalkboard SE', 'Arial Rounded MT Bold', cursive;
   background: #050d05;
   display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; overflow: hidden;
-  /* iOS safe area */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-           env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Fixed fullscreen — no scroll, no bounce on iOS */
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  overflow: hidden;
+  touch-action: none;
 }
 
 /* ════════════════════════════════════════════════════
@@ -49,10 +50,13 @@ body {
 #gw {
   position: relative;
   width: 900px; height: 560px;
+  flex-shrink: 0;
   border: 3px solid #2a5010; border-radius: 12px;
   box-shadow: 0 0 60px rgba(0,255,0,0.12), 0 0 120px rgba(0,80,0,0.25);
   overflow: hidden;
   transform-origin: center center;
+  /* Prevent text selection on tap */
+  -webkit-user-select: none; user-select: none;
 }
 
 /* ════════════════════════════════════════════════════
@@ -425,6 +429,36 @@ body {
 .flower { position: absolute; bottom: 63px; z-index: 3; font-size: 20px; }
 
 /* ════════════════════════════════════════════════════
+   PORTRAIT WARNING OVERLAY
+════════════════════════════════════════════════════ */
+#rotateMsg {
+  display: none;
+  position: fixed; inset: 0; z-index: 9999;
+  background: #050d05;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; text-align: center; padding: 30px;
+}
+#rotateMsg .rIcon {
+  font-size: 72px;
+  animation: rotatePhone 2s ease-in-out infinite;
+}
+@keyframes rotatePhone {
+  0%,100% { transform: rotate(0deg); }
+  40%      { transform: rotate(90deg); }
+  60%      { transform: rotate(90deg); }
+}
+#rotateMsg .rText {
+  font-size: 22px; color: #76FF03; font-weight: 700;
+  text-shadow: 0 0 20px #76FF03;
+}
+#rotateMsg .rSub {
+  font-size: 14px; color: #4CAF50; opacity: .8;
+}
+/* Show overlay in portrait, hide in landscape */
+@media (orientation: portrait) { #rotateMsg { display: flex; } }
+@media (orientation: landscape) { #rotateMsg { display: none; } }
+
+/* ════════════════════════════════════════════════════
    PWA INSTALL BANNER
 ════════════════════════════════════════════════════ */
 #installBanner {
@@ -446,6 +480,13 @@ body {
 </head>
 <body>
 <div id="gw">
+
+  <!-- ══════ PORTRAIT WARNING ══════ -->
+  <div id="rotateMsg">
+    <div class="rIcon">📱</div>
+    <div class="rText">🧟 Rotate Your Phone! 🧟</div>
+    <div class="rSub">This game plays in landscape mode</div>
+  </div>
 
   <!-- ══════ START SCREEN ══════ -->
   <div id="ss">
@@ -1202,16 +1243,30 @@ function startGame(diff) {
 }
 
 /* ══════════════════════════════════════════════════════
-   RESPONSIVE SCALING
+   RESPONSIVE SCALING — mobile-accurate
 ══════════════════════════════════════════════════════ */
 function scaleGame() {
-  const gw=document.getElementById('gw');
-  const sx=window.innerWidth/906;
-  const sy=window.innerHeight/566;
-  const sc=Math.min(sx,sy,1.4); // allow scaling up to 1.4x
-  gw.style.transform=`scale(${sc})`;
+  const gw = document.getElementById('gw');
+  const W = 900, H = 560;
+
+  // visualViewport is the most accurate on mobile —
+  // it accounts for the browser's address bar, bottom nav,
+  // and keyboard. Fall back to window dimensions on desktop.
+  const vw = (window.visualViewport ? window.visualViewport.width  : window.innerWidth);
+  const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+
+  // Subtract a small margin so the border isn't clipped on phone edges
+  const margin = 4;
+  const sc = Math.min((vw - margin) / W, (vh - margin) / H);
+  gw.style.transform = `scale(${sc})`;
 }
-window.addEventListener('resize',scaleGame);
+
+// Listen on every possible resize event so it's always correct
+window.addEventListener('resize', scaleGame);
+window.addEventListener('orientationchange', () => setTimeout(scaleGame, 350));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', scaleGame);
+}
 scaleGame();
 
 /* ══════════════════════════════════════════════════════
