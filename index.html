@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- ═══════════════════════════════════════
+     PWA META TAGS
+═══════════════════════════════════════ -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#76FF03">
+<meta name="description" content="Defend your brain by answering math questions to shoot down zombies!">
+
+<!-- Android / Chrome PWA -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Zombie Math">
+
+<!-- iOS Safari PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zombie Math">
+<link rel="apple-touch-icon" href="./icon.svg">
+<!-- iOS splash-screen color matches game background -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+<!-- Manifest -->
+<link rel="manifest" href="./manifest.json">
+
+<title>🧟 Zombie Math Tower Defense</title>
+<style>
+/* ════════════════════════════════════════════════════
+   BASE
+════════════════════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Comic Sans MS', 'Chalkboard SE', 'Arial Rounded MT Bold', cursive;
+  background: #050d05;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; overflow: hidden;
+  /* iOS safe area */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ════════════════════════════════════════════════════
+   GAME WRAPPER  (fixed at 900×560, scaled via JS)
+════════════════════════════════════════════════════ */
+#gw {
+  position: relative;
+  width: 900px; height: 560px;
+  border: 3px solid #2a5010; border-radius: 12px;
+  box-shadow: 0 0 60px rgba(0,255,0,0.12), 0 0 120px rgba(0,80,0,0.25);
+  overflow: hidden;
+  transform-origin: center center;
+}
+
+/* ════════════════════════════════════════════════════
+   START SCREEN
+════════════════════════════════════════════════════ */
+#ss {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 35%, #1c480a 0%, #061204 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; z-index: 100;
+}
+
+.gtitle {
+  font-size: 54px; font-weight: 900; color: #76FF03; letter-spacing: 3px;
+  text-shadow: 0 0 40px #76FF03, 0 0 80px #33691E, 4px 4px 0 #1B5E20;
+  animation: gTitlePulse 2s ease-in-out infinite;
+}
+@keyframes gTitlePulse {
+  0%,100% { transform: scale(1) rotate(0deg); }
+  40% { transform: scale(1.04) rotate(-1.5deg); }
+  80% { transform: scale(1.04) rotate(1.5deg); }
+}
+
+.gsub {
+  font-size: 20px; color: #FF5252; letter-spacing: 1px;
+  text-shadow: 2px 2px 0 #7f0000;
+}
+
+.howto {
+  font-size: 14px; color: #C8E6C9; text-align: center;
+  line-height: 1.9; max-width: 440px;
+  background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.drow { display: flex; gap: 16px; margin-top: 8px; }
+
+.db {
+  padding: 14px 26px; border: none; border-radius: 12px;
+  font-family: inherit; font-size: 17px; font-weight: 700; color: #fff;
+  cursor: pointer; letter-spacing: .5px;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.55);
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+  transition: transform .12s, box-shadow .12s;
+  line-height: 1.5;
+}
+.db small { font-size: 12px; opacity: .8; }
+.db:hover { transform: translateY(-4px); box-shadow: 0 10px 0 rgba(0,0,0,0.55); }
+.db:active { transform: translateY(2px); box-shadow: 0 4px 0 rgba(0,0,0,0.55); }
+
+.de { background: linear-gradient(145deg,#66BB6A,#2E7D32); }
+.dm { background: linear-gradient(145deg,#FFA726,#E65100); }
+.dh { background: linear-gradient(145deg,#EF5350,#B71C1C); }
+
+/* ════════════════════════════════════════════════════
+   GAME SCREEN
+════════════════════════════════════════════════════ */
+#gs {
+  position: absolute; inset: 0;
+  display: none; flex-direction: column;
+}
+
+/* HUD */
+#hud {
+  height: 52px; flex-shrink: 0;
+  background: linear-gradient(180deg,#0e2903,#192e07);
+  border-bottom: 2px solid #33691E;
+  display: flex; align-items: center; padding: 0 14px; gap: 14px;
+  z-index: 10;
+}
+.hi { display:flex; align-items:center; gap:5px; font-size:14px; color:#fff; }
+.hl { color:#81C784; font-size:11px; }
+.hv { color:#FFF176; font-weight:700; min-width:30px; font-size:15px; }
+.sp { flex:1; }
+
+#fbtn {
+  padding: 7px 13px; border-radius: 8px; border: 2px solid #00E5FF;
+  background: linear-gradient(135deg,#004D5F,#00838F);
+  font-family:inherit; font-size:13px; font-weight:700; color:#fff;
+  cursor:pointer; display:none;
+  animation: icePulse 1.2s ease-in-out infinite;
+}
+@keyframes icePulse {
+  0%,100% { box-shadow: 0 0 8px #00E5FF; }
+  50% { box-shadow: 0 0 22px #00E5FF, 0 0 40px #006064; }
+}
+
+#muteBtn {
+  padding: 7px 12px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.07);
+  font-family:inherit; font-size:13px; color:#ccc; cursor:pointer;
+}
+#muteBtn:hover, #fbtn:hover { filter:brightness(1.25); }
+
+/* LAWN */
+#lawn {
+  flex: 1; position: relative; overflow: hidden;
+  background: linear-gradient(to bottom,
+    #5DADE2 0px, #7EC8E3 60px, #AED6F1 76px,
+    #4CAF50 80px, #43A047 110px,
+    #388E3C 110px, #3D9140 138px,
+    #4CAF50 138px, #43A047 166px,
+    #388E3C 166px, #3D9140 194px,
+    #4CAF50 194px, #43A047 222px,
+    #388E3C 222px, #3D9140 250px,
+    #4CAF50 250px, #43A047 278px,
+    #388E3C 278px, #43A047 306px,
+    #4CAF50 306px, #388E3C 360px
+  );
+}
+
+/* Sun */
+.sun {
+  position: absolute; top: 8px; right: 22px;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: radial-gradient(circle, #FFFDE7 0%, #FFF176 40%, #FDD835 100%);
+  box-shadow: 0 0 18px #FDD835, 0 0 35px rgba(253,216,53,.5);
+  z-index: 2;
+  animation: sunGlow 4s ease-in-out infinite;
+}
+@keyframes sunGlow {
+  0%,100% { box-shadow: 0 0 18px #FDD835; }
+  50% { box-shadow: 0 0 30px #FDD835, 0 0 55px rgba(253,216,53,.4); }
+}
+
+/* Cloud */
+.cloud {
+  position: absolute; top: 12px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.82);
+  z-index: 1;
+}
+
+/* Ground line */
+#lawn::before {
+  content: '';
+  position: absolute; bottom: 70px; left: 0; right: 0;
+  height: 2px; background: rgba(0,0,0,.12); z-index: 2;
+}
+
+/* Player (house) */
+#player {
+  position: absolute; left: 5px; bottom: 63px; width: 92px; z-index: 8;
+}
+
+/* Fence */
+#fence {
+  position: absolute; left: 100px; bottom: 63px; z-index: 7;
+  display: flex; gap: 0;
+}
+
+/* Zombie Layer */
+#zl { position: absolute; inset: 0; z-index: 5; overflow: visible; }
+
+/* ZOMBIE */
+.zombie {
+  position: absolute; bottom: 63px;
+  display: flex; flex-direction: column; align-items: center;
+  will-change: left;
+  overflow: visible;
+}
+
+.z-qb {
+  display: none;
+  background: #FFFDE7; border: 2.5px solid #4E342E; border-radius: 10px;
+  padding: 4px 10px; font-size: 18px; font-weight: 700; color: #1A1A1A;
+  margin-bottom: 5px; white-space: nowrap;
+  box-shadow: 2px 3px 8px rgba(0,0,0,0.4); position: relative;
+  animation: qbPop .3s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes qbPop { 0%{transform:scale(0.7);opacity:0} 100%{transform:scale(1);opacity:1} }
+.z-qb::after {
+  content: ''; position: absolute; bottom: -10px; left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: #4E342E;
+}
+
+.z-hp {
+  width: 58px; height: 7px;
+  background: #1a1a1a; border-radius: 4px; border: 1px solid #000;
+  margin-bottom: 4px; overflow: hidden;
+}
+.z-hf {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg,#E53935,#FF7043);
+  transition: width .3s ease, background .3s ease;
+}
+
+.z-spr {
+  animation: zWalk .55s ease-in-out infinite;
+  overflow: visible;
+}
+@keyframes zWalk {
+  0%,100% { transform: translateY(0px) rotate(-3.5deg); }
+  25%      { transform: translateY(-5px) rotate(0deg); }
+  50%      { transform: translateY(-2px) rotate(3.5deg); }
+  75%      { transform: translateY(-6px) rotate(0deg); }
+}
+
+/* Leg animations (applied to SVG g elements) */
+@keyframes legL { 0%,100%{transform:rotate(-20deg)} 50%{transform:rotate(20deg)} }
+@keyframes legR { 0%,100%{transform:rotate(20deg)} 50%{transform:rotate(-20deg)} }
+.lL { animation: legL .55s ease-in-out infinite; }
+.lR { animation: legR .55s ease-in-out infinite; }
+/* Arm animations */
+@keyframes armL { 0%,100%{transform:rotate(-10deg)} 50%{transform:rotate(10deg)} }
+@keyframes armR { 0%,100%{transform:rotate(5deg)} 50%{transform:rotate(-5deg)} }
+.aL { animation: armL .55s ease-in-out infinite; }
+.aR { animation: armR .55s ease-in-out infinite; }
+
+/* HIT */
+.z-hit .z-spr { animation: zHit .42s forwards !important; }
+@keyframes zHit {
+  0%   { filter:brightness(1); transform:translateX(0); }
+  15%  { filter:brightness(5) saturate(0) sepia(1) hue-rotate(280deg); transform:translateX(20px) scale(1.15); }
+  45%  { filter:brightness(2) sepia(1) saturate(5) hue-rotate(310deg); transform:translateX(-10px); }
+  75%  { filter:brightness(1.5); transform:translateX(5px); }
+  100% { filter:brightness(1); transform:translateX(0); }
+}
+
+/* HEAL */
+.z-heal .z-spr { animation: zHeal .7s forwards !important; }
+@keyframes zHeal {
+  0%   { filter:brightness(1); }
+  20%  { filter:brightness(1.8) hue-rotate(90deg) saturate(4); transform:scale(1.18); }
+  55%  { filter:brightness(2.5) hue-rotate(115deg) saturate(5); transform:scale(1.25); }
+  100% { filter:brightness(1); transform:scale(1); }
+}
+
+/* DEATH */
+.z-die .z-spr { animation: zDie .9s ease-in forwards !important; }
+@keyframes zDie {
+  0%   { transform:rotate(0deg) scaleY(1) translateX(0); opacity:1; }
+  30%  { transform:rotate(-40deg) scaleY(0.9) translateX(-5px); opacity:.9; }
+  60%  { transform:rotate(-75deg) scaleY(0.6) scaleX(1.2) translateX(-10px); opacity:.6; }
+  100% { transform:rotate(-90deg) scaleY(0.05) scaleX(2) translateX(-15px); opacity:0; }
+}
+
+/* FREEZE OVERLAY */
+#fov {
+  position: absolute; inset: 0; z-index: 20; display: none; pointer-events: none;
+  background: linear-gradient(135deg,
+    rgba(179,229,252,.22) 0%, rgba(129,212,250,.18) 50%, rgba(179,229,252,.22) 100%);
+  border: 3px solid rgba(100,200,255,.35);
+}
+#fov::after {
+  content: '❄  FROZEN!  ❄'; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  font-size: 38px; color: #E1F5FE;
+  text-shadow: 0 0 25px #00BCD4, 0 0 50px #006064;
+  animation: frozenTxt 1s ease-in-out infinite;
+  white-space: nowrap;
+}
+@keyframes frozenTxt {
+  0%,100% { opacity:1; letter-spacing:5px; }
+  50% { opacity:.7; letter-spacing:10px; }
+}
+
+.sf {
+  position: absolute; pointer-events: none; z-index: 21;
+  animation: sfFall linear forwards;
+  opacity: 0.9;
+}
+@keyframes sfFall {
+  from { transform: translateY(-20px) rotate(0deg); opacity:1; }
+  to   { transform: translateY(450px) rotate(600deg); opacity:0; }
+}
+
+/* QUESTION AREA */
+#qa {
+  height: 155px; flex-shrink: 0;
+  background: linear-gradient(180deg,#0c1804,#060f02);
+  border-top: 3px solid #2E7D32;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 10px 16px;
+}
+
+#qt {
+  font-size: 38px; font-weight: 900; color: #FFF176; letter-spacing: 3px;
+  text-shadow: 2px 2px 0 #1a1a00, 0 0 25px rgba(255,241,118,.35);
+  min-height: 48px; display: flex; align-items: center;
+}
+
+#ac { display: flex; gap: 14px; }
+
+.ab {
+  min-width: 90px; padding: 11px 22px;
+  background: linear-gradient(145deg,#FF7043,#BF360C);
+  border: 3px solid #FF8A65; border-radius: 10px;
+  color: #fff; font-family: inherit; font-size: 26px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 5px 0 #7B2900;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+  transition: transform .1s, box-shadow .1s;
+  -webkit-user-select: none; user-select: none;
+  /* Prevent tap highlight on mobile */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.ab:hover:not(:disabled) { transform:translateY(-3px); box-shadow:0 8px 0 #7B2900; filter:brightness(1.1); }
+.ab:active:not(:disabled) { transform:translateY(2px); box-shadow:0 3px 0 #7B2900; }
+.ab:disabled { opacity:.4; cursor:default; }
+
+/* ════════════════════════════════════════════════════
+   VICTORY SCREEN
+════════════════════════════════════════════════════ */
+#vs {
+  position: absolute; inset: 0; z-index: 80; display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: radial-gradient(ellipse at center, rgba(5,50,5,.97) 0%, rgba(2,12,2,.97) 100%);
+}
+.vt { font-size: 58px; color: #FFD600; font-weight: 900;
+  text-shadow: 0 0 30px #FF6F00, 4px 4px 0 #5D3200;
+  animation: vBounce .65s ease-in-out infinite alternate;
+}
+@keyframes vBounce { 0%{transform:scale(1) rotate(-3deg)} 100%{transform:scale(1.1) rotate(3deg)} }
+.vdance { font-size: 68px; animation: vDance .85s ease-in-out infinite; }
+@keyframes vDance {
+  0%,100% { transform:translateY(0) rotate(0deg); }
+  20% { transform:translateY(-22px) rotate(-14deg); }
+  50% { transform:translateY(-8px) rotate(8deg); }
+  75% { transform:translateY(-20px) rotate(-7deg); }
+}
+.vsc { font-size: 22px; color: #A5D6A7; text-shadow: 1px 1px 0 #1B5E20; }
+
+/* ════════════════════════════════════════════════════
+   GAME OVER SCREEN
+════════════════════════════════════════════════════ */
+#gos {
+  position: absolute; inset: 0; z-index: 80; display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: radial-gradient(ellipse at center, rgba(70,3,3,.97) 0%, rgba(10,0,0,.97) 100%);
+}
+.got { font-size: 50px; color: #F44336; font-weight: 900;
+  text-shadow: 0 0 20px #B71C1C, 3px 3px 0 #3E0000;
+  animation: goShake .5s ease-in-out infinite;
+}
+@keyframes goShake {
+  0%,100%{ transform:translateX(0) rotate(0deg); }
+  30%{ transform:translateX(-7px) rotate(-2.5deg); }
+  70%{ transform:translateX(7px) rotate(2.5deg); }
+}
+.geat { font-size: 70px; animation: brainEat .45s steps(2,end) infinite; }
+@keyframes brainEat {
+  0% { transform:scale(1) rotate(-8deg) translateX(-3px); }
+  100% { transform:scale(1.15) rotate(8deg) translateX(3px); }
+}
+.gosc { font-size: 20px; color: #EF9A9A; }
+.gosub { font-size: 15px; color: #EF9A9A; opacity: .7; }
+
+/* Common buttons */
+.mbtn {
+  padding: 13px 32px; border: none; border-radius: 12px;
+  font-family: inherit; font-size: 18px; font-weight: 700; color: #fff;
+  cursor: pointer; box-shadow: 0 6px 0 rgba(0,0,0,.55);
+  text-shadow: 1px 1px 0 rgba(0,0,0,.4);
+  transition: transform .12s, box-shadow .12s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.mbtn:hover { transform:translateY(-4px); box-shadow:0 10px 0 rgba(0,0,0,.55); }
+.mbtn:active { transform:translateY(2px); box-shadow:0 4px 0 rgba(0,0,0,.55); }
+.bbl { background: linear-gradient(145deg,#42A5F5,#1565C0); }
+.bgn { background: linear-gradient(145deg,#66BB6A,#2E7D32); }
+.brd { background: linear-gradient(145deg,#EF5350,#B71C1C); }
+
+/* ════════════════════════════════════════════════════
+   DECORATIVE ELEMENTS
+════════════════════════════════════════════════════ */
+.flower { position: absolute; bottom: 63px; z-index: 3; font-size: 20px; }
+
+/* ════════════════════════════════════════════════════
+   PWA INSTALL BANNER
+════════════════════════════════════════════════════ */
+#installBanner {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 200;
+  background: linear-gradient(90deg,#1B5E20,#2E7D32);
+  border-top: 2px solid #76FF03;
+  display: none; align-items: center; justify-content: center;
+  gap: 14px; padding: 10px 16px;
+  font-size: 14px; color: #fff;
+}
+#installBanner button {
+  padding: 7px 18px; border-radius: 8px; border: none;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+#installBanner .ib-yes { background: #76FF03; color: #050d05; }
+#installBanner .ib-no  { background: transparent; color: #A5D6A7; border: 1px solid #4CAF50; }
+</style>
+</head>
+<body>
+<div id="gw">
+
+  <!-- ══════ START SCREEN ══════ -->
+  <div id="ss">
+    <div class="gtitle">🧟 ZOMBIE MATH 🧟</div>
+    <div class="gsub">⚡ Tower Defense — Defend Your Brain! ⚡</div>
+    <div class="howto">
+      🔢 Answer math questions to shoot down zombies!<br>
+      ✅ <b>5 correct in a row</b> → unlock ❄️ <b>FREEZE</b> power for 5 seconds!<br>
+      ❌ Wrong answers make zombies <b>stronger</b> and <b>faster</b>!<br>
+      💀 Don't let them reach your house!
+    </div>
+    <div class="drow">
+      <button class="db de" onclick="startGame('easy')">🌱 Easy<br><small>8 zombies · slow · +/-</small></button>
+      <button class="db dm" onclick="startGame('medium')">🔥 Medium<br><small>14 zombies · moderate · +/-/×</small></button>
+      <button class="db dh" onclick="startGame('hard')">💀 Hard<br><small>20 zombies · FAST · all ops</small></button>
+    </div>
+    <div style="color:#3a5a2a;font-size:11px;margin-top:6px">
+      🎵 Synthesized audio via Web Audio API • No external assets
+    </div>
+  </div>
+
+  <!-- ══════ GAME SCREEN ══════ -->
+  <div id="gs">
+    <div id="hud">
+      <div class="hi">🏆<span class="hl">Score</span><span class="hv" id="hS">0</span></div>
+      <div class="hi">💀<span class="hl">Kills</span><span class="hv" id="hK">0/0</span></div>
+      <div class="hi">🔥<span class="hl">Streak</span><span class="hv" id="hSt">0</span></div>
+      <div class="sp"></div>
+      <button id="fbtn" onclick="doFreeze()">❄️ FREEZE (5s)</button>
+      <button id="muteBtn" onclick="toggleMute()">🔊 Mute</button>
+    </div>
+    <div id="lawn">
+      <div class="sun"></div>
+      <!-- Clouds placed by JS -->
+      <div id="player"></div>
+      <div id="fence"></div>
+      <div id="zl"></div>
+      <div id="fov"></div>
+    </div>
+    <div id="qa">
+      <div id="qt">🧟 Here they come!</div>
+      <div id="ac">
+        <button class="ab" id="a0" onclick="answer(0)">?</button>
+        <button class="ab" id="a1" onclick="answer(1)">?</button>
+        <button class="ab" id="a2" onclick="answer(2)">?</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ VICTORY SCREEN ══════ -->
+  <div id="vs">
+    <div class="vdance">🌻🎉🌻</div>
+    <div class="vt">YOU WIN! 🏆</div>
+    <div class="vsc" id="vscEl"></div>
+    <div style="display:flex;gap:14px;margin-top:10px">
+      <button class="mbtn bbl" onclick="goMenu()">🏠 Menu</button>
+      <button class="mbtn bgn" onclick="startGame(G.diff)">🔄 Again</button>
+    </div>
+  </div>
+
+  <!-- ══════ GAME OVER SCREEN ══════ -->
+  <div id="gos">
+    <div class="geat">🧟‍♂️🧠</div>
+    <div class="got">BRAAAAAINS!</div>
+    <div class="gosub">They got your brain...</div>
+    <div class="gosc" id="goscEl"></div>
+    <div style="display:flex;gap:14px;margin-top:10px">
+      <button class="mbtn bbl" onclick="goMenu()">🏠 Menu</button>
+      <button class="mbtn brd" onclick="startGame(G.diff)">💀 Try Again</button>
+    </div>
+  </div>
+
+  <!-- ══════ PWA INSTALL BANNER ══════ -->
+  <div id="installBanner">
+    <span>📲 Install Zombie Math on your home screen!</span>
+    <button class="ib-yes" id="installBtn">Install</button>
+    <button class="ib-no"  id="dismissBtn">✕</button>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════════════
+   CONFIGURATION
+══════════════════════════════════════════════════════ */
+const CFG = {
+  easy:   { spd:22,  hpLo:1, hpHi:2, count:8,  ms:3400, num:9,  ops:['+','-']       },
+  medium: { spd:44,  hpLo:2, hpHi:3, count:14, ms:2600, num:12, ops:['+','-','×']   },
+  hard:   { spd:68,  hpLo:3, hpHi:5, count:20, ms:2000, num:14, ops:['+','-','×']   }
+};
+const EDGE = 110; // px - game over when zombie crosses here
+
+/* ══════════════════════════════════════════════════════
+   GAME STATE
+══════════════════════════════════════════════════════ */
+let G = {
+  diff:'easy', cfg:CFG.easy,
+  zombies:[], nid:0, spawned:0, killed:0,
+  score:0, streak:0, best:0,
+  fReady:false, frozen:false, fTO:null,
+  spawnTmr:null, curQ:null, choices:[],
+  locked:false, running:false, raf:null, lastT:0
+};
+
+/* ══════════════════════════════════════════════════════
+   AUDIO ENGINE
+══════════════════════════════════════════════════════ */
+let muted = false;
+let actx = null;
+let bgTmr = null, bgIdx = 0;
+
+// Melody: [freq, beats] (0 = rest)
+const BGM = [
+  [185,1],[0,.5],[220,1],[0,.5],[246,1],[0,.5],[220,1],[0,1],
+  [174,1],[0,.5],[185,1],[0,.5],[207,1],[0,.5],[196,1],[0,1],
+  [220,1],[0,.5],[261,1],[0,.5],[220,1],[0,.5],[196,1],[0,1],
+  [174,1],[0,.5],[155,1],[0,.5],[165,1],[0,.5],[185,1],[0,2],
+  [220,1],[0,.5],[246,1],[0,.5],[261,1],[0,.5],[246,1],[0,1],
+  [185,1],[0,.5],[196,1],[0,.5],[220,1],[0,.5],[207,1],[0,1.5],
+];
+const BPM = 140; // ms per beat
+
+function ctx() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+
+function tone(f, type, dur, vol, d=0) {
+  if (muted || !f) return;
+  try {
+    const c = ctx(), o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, c.currentTime+d);
+    g.gain.exponentialRampToValueAtTime(.0001, c.currentTime+d+dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(c.currentTime+d); o.stop(c.currentTime+d+dur+.05);
+  } catch(e){}
+}
+
+function noise(dur, vol, d=0) {
+  if (muted) return;
+  try {
+    const c = ctx(), sr = c.sampleRate, n = sr*dur;
+    const buf = c.createBuffer(1,n,sr), dat = buf.getChannelData(0);
+    for(let i=0;i<n;i++) dat[i]=(Math.random()*2-1)*.35;
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf;
+    g.gain.setValueAtTime(vol,c.currentTime+d);
+    g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d+dur);
+    src.connect(g); g.connect(c.destination);
+    src.start(c.currentTime+d);
+  } catch(e){}
+}
+
+function sCorrect() {
+  tone(440,'square',.07,.22);
+  tone(660,'square',.07,.22,.07);
+  tone(880,'square',.1,.28,.14);
+  tone(1100,'sine',.14,.2,.22);
+}
+
+function sWrong() {
+  tone(220,'sawtooth',.13,.3);
+  tone(180,'sawtooth',.13,.28,.11);
+  tone(140,'sawtooth',.2,.25,.22);
+  noise(.28,.12,.05);
+}
+
+function sFreeze() {
+  for(let i=0;i<12;i++) tone(1000+Math.random()*1400,'sine',.2,.1,i*.055);
+  tone(380,'sine',.7,.14); tone(280,'sine',.7,.1,.18);
+}
+
+function sVictory() {
+  [523,659,784,1047,784,1047,1319,1568].forEach((f,i)=>{
+    tone(f,'square',.18,.22,i*.11);
+    tone(f*.5,'sine',.18,.14,i*.11);
+  });
+}
+
+function sGameOver() {
+  [440,370,311,261,220,185,155,130].forEach((f,i)=>{
+    tone(f,'sawtooth',.24,.26,i*.14);
+  });
+  noise(.9,.14,.55);
+}
+
+function bgTick() {
+  if (!G.running) return;
+  const [f, b] = BGM[bgIdx % BGM.length];
+  if (f && !muted) {
+    tone(f*.5,'triangle',b*BPM*.001,.065);
+    tone(f,'square',b*BPM*.001,.028);
+    if (bgIdx%8===0) noise(.03,.035);
+  }
+  bgIdx++;
+  bgTmr = setTimeout(bgTick, b * BPM);
+}
+
+function bgStart() { bgStop(); bgIdx=0; bgTmr = setTimeout(bgTick,300); }
+function bgStop()  { clearTimeout(bgTmr); bgTmr=null; }
+
+function toggleMute() {
+  muted = !muted;
+  document.getElementById('muteBtn').textContent = muted ? '🔇 Unmute' : '🔊 Mute';
+  if (!muted && G.running) bgStart();
+}
+
+/* ══════════════════════════════════════════════════════
+   SVG BUILDERS
+══════════════════════════════════════════════════════ */
+function zSVG(type, hp, maxHp) {
+  const sk  = hp>3?'#6B8E23':hp>2?'#7CB342':'#8BC34A';
+  const dsk = hp>3?'#4a6a00':hp>2?'#558B2F':'#5a8f1a';
+  const sh  = hp>3?'#8B0000':hp>2?'#6A1B9A':'#1A237E';
+  const pt  = '#37474F';
+
+  let hat = '';
+  if (type==='cone') hat = `
+    <polygon points="35,0 22,22 48,22" fill="#FF6F00" stroke="#BF360C" stroke-width="1.5"/>
+    <line x1="22" y1="15" x2="48" y2="15" stroke="#FFB300" stroke-width="2.5"/>
+    <line x1="25" y1="10" x2="45" y2="10" stroke="#FFD54F" stroke-width="1.5" opacity=".7"/>
+  `;
+  else if (type==='bucket') hat = `
+    <rect x="14" y="1" width="42" height="24" rx="4" fill="#546E7A" stroke="#37474F" stroke-width="2"/>
+    <rect x="12" y="20" width="46" height="6" rx="2" fill="#78909C"/>
+    <line x1="17" y1="9" x2="53" y2="9" stroke="#37474F" stroke-width="1.5" opacity=".6"/>
+    <line x1="17" y1="16" x2="53" y2="16" stroke="#37474F" stroke-width="1.5" opacity=".6"/>
+    <circle cx="35" cy="5" r="2" fill="#90A4AE" opacity=".8"/>
+  `;
+
+  return `<svg viewBox="-15 0 100 118" width="78" height="118"
+    xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block">
+  <!-- Shadow -->
+  <ellipse cx="35" cy="116" rx="22" ry="4.5" fill="rgba(0,0,0,.22)"/>
+
+  <!-- Left Leg -->
+  <g class="lL" style="transform-origin:25px 78px">
+    <rect x="18" y="78" width="14" height="36" rx="5" fill="${pt}"/>
+    <rect x="16" y="109" width="18" height="8" rx="3" fill="#3E2723"/>
+  </g>
+  <!-- Right Leg -->
+  <g class="lR" style="transform-origin:45px 78px">
+    <rect x="38" y="78" width="14" height="36" rx="5" fill="${pt}"/>
+    <rect x="36" y="109" width="18" height="8" rx="3" fill="#3E2723"/>
+  </g>
+
+  <!-- Body / Shirt -->
+  <rect x="17" y="43" width="36" height="38" rx="6" fill="${sh}"/>
+  <!-- Shirt tear (slightly torn bottom) -->
+  <path d="M17 71 Q22 64 27 71 Q32 64 37 71 Q42 64 47 71 Q51 64 53 71 L53 81 L17 81 Z"
+    fill="${sk}" opacity=".25"/>
+
+  <!-- Left Arm (forward/outstretched) -->
+  <g class="aL" style="transform-origin:17px 51px">
+    <rect x="-12" y="44" width="31" height="12" rx="6" fill="${sk}"/>
+    <ellipse cx="-12" cy="50" rx="9" ry="8" fill="${sk}"/>
+    <!-- Fingers -->
+    <line x1="-17" y1="43" x2="-21" y2="35" stroke="${dsk}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="-11" y1="42" x2="-14" y2="34" stroke="${dsk}" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="-5"  y1="43" x2="-7"  y2="35" stroke="${dsk}" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Right Arm (behind, dragging) -->
+  <g class="aR" style="transform-origin:53px 51px">
+    <rect x="53" y="45" width="22" height="11" rx="5" fill="${sk}"/>
+    <ellipse cx="75" cy="50" rx="8" ry="7" fill="${sk}"/>
+    <line x1="71" y1="44" x2="75" y2="36" stroke="${dsk}" stroke-width="3" stroke-linecap="round"/>
+    <line x1="76" y1="43" x2="80" y2="36" stroke="${dsk}" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Neck -->
+  <rect x="28" y="35" width="14" height="12" rx="3" fill="${sk}"/>
+
+  <!-- Head -->
+  <ellipse cx="35" cy="23" rx="21" ry="23" fill="${sk}"/>
+
+  <!-- Ears -->
+  <ellipse cx="14" cy="25" rx="5.5" ry="7.5" fill="${sk}"/>
+  <ellipse cx="56" cy="25" rx="5.5" ry="7.5" fill="${sk}"/>
+  <ellipse cx="14" cy="25" rx="3" ry="5" fill="${dsk}" opacity=".5"/>
+  <ellipse cx="56" cy="25" rx="3" ry="5" fill="${dsk}" opacity=".5"/>
+
+  <!-- Messy Hair -->
+  <path d="M15 10 Q18 2 24 5 Q28 -2 35 2 Q42 -2 46 5 Q52 2 55 10
+           Q53 18 46 15 Q35 10 24 15 Z" fill="#3E2723"/>
+  <!-- Some hair strands -->
+  <path d="M20 10 Q22 4 25 8" fill="none" stroke="#4E342E" stroke-width="2"/>
+  <path d="M45 8 Q47 3 50 7" fill="none" stroke="#4E342E" stroke-width="2"/>
+
+  <!-- Eyes - whites -->
+  <ellipse cx="25" cy="21" rx="8" ry="9" fill="white"/>
+  <ellipse cx="45" cy="21" rx="8" ry="9" fill="white"/>
+  <!-- Bloodshot veins -->
+  <line x1="18" y1="18" x2="22" y2="22" stroke="#ffaaaa" stroke-width=".9" opacity=".7"/>
+  <line x1="32" y1="17" x2="28" y2="22" stroke="#ffaaaa" stroke-width=".9" opacity=".7"/>
+  <line x1="38" y1="17" x2="42" y2="22" stroke="#ffaaaa" stroke-width=".9" opacity=".7"/>
+  <line x1="52" y1="18" x2="48" y2="22" stroke="#ffaaaa" stroke-width=".9" opacity=".7"/>
+  <!-- Irises (red/yellow zombie eyes) -->
+  <ellipse cx="25" cy="23" rx="6" ry="7" fill="#CC0000"/>
+  <ellipse cx="45" cy="23" rx="6" ry="7" fill="#CC0000"/>
+  <!-- Pupils -->
+  <ellipse cx="25" cy="24" rx="3.5" ry="4" fill="#1a0000"/>
+  <ellipse cx="45" cy="24" rx="3.5" ry="4" fill="#1a0000"/>
+  <!-- Shine -->
+  <circle cx="23" cy="21" r="2" fill="white" opacity=".75"/>
+  <circle cx="43" cy="21" r="2" fill="white" opacity=".75"/>
+
+  <!-- Angry brows -->
+  <path d="M17 12 Q25 8 33 12" stroke="${dsk}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M37 12 Q45 8 53 12" stroke="${dsk}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Nose -->
+  <ellipse cx="35" cy="28" rx="4.5" ry="3" fill="${dsk}" opacity=".7"/>
+  <path d="M31 28 Q35 33 39 28" fill="none" stroke="${dsk}" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Mouth (open, gaping) -->
+  <path d="M22 35 Q35 44 48 35" fill="#8B0000" stroke="#5a0000" stroke-width="1.5"/>
+  <!-- Teeth -->
+  <rect x="26" y="35" width="5.5" height="6" rx="2" fill="#ECEFF1" opacity=".95"/>
+  <rect x="32.5" y="35" width="5" height="6" rx="2" fill="#ECEFF1" opacity=".95"/>
+  <rect x="39" y="35" width="5" height="5.5" rx="2" fill="#ECEFF1" opacity=".85"/>
+  <!-- Tongue / drool -->
+  <ellipse cx="35" cy="42" rx="5.5" ry="3.5" fill="#E91E63" opacity=".9"/>
+  <path d="M33 44 Q34 51 31 54" stroke="rgba(80,255,80,.45)" stroke-width="3"
+    fill="none" stroke-linecap="round"/>
+
+  <!-- Battle scars for tough zombies -->
+  ${hp>=4?`<path d="M19 28 L25 35 M22 26 L27 32" stroke="#770000" stroke-width="2" stroke-linecap="round"/>`:''}
+  ${hp>=5?`<path d="M44 20 L50 26" stroke="#770000" stroke-width="2" stroke-linecap="round"/>`:''}
+
+  ${hat}
+</svg>`;
+}
+
+function houseSVG() {
+  return `<svg viewBox="0 0 92 122" width="92" height="122" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="46" cy="119" rx="38" ry="5.5" fill="rgba(0,0,0,.25)"/>
+  <!-- House body -->
+  <rect x="4" y="54" width="84" height="68" fill="#EFEBE9" rx="2"/>
+  <!-- Brick texture hint -->
+  <g opacity=".15" stroke="#8D6E63" stroke-width="1">
+    <line x1="4" y1="70" x2="88" y2="70"/>
+    <line x1="4" y1="86" x2="88" y2="86"/>
+    <line x1="4" y1="102" x2="88" y2="102"/>
+    <line x1="46" y1="54" x2="46" y2="70"/>
+    <line x1="23" y1="70" x2="23" y2="86"/>
+    <line x1="69" y1="70" x2="69" y2="86"/>
+    <line x1="34" y1="86" x2="34" y2="102"/>
+    <line x1="58" y1="86" x2="58" y2="102"/>
+  </g>
+  <!-- Roof -->
+  <polygon points="-3,54 46,8 95,54" fill="#6D4C41" stroke="#4E342E" stroke-width="1.5"/>
+  <polygon points="5,54 46,14 87,54" fill="#795548"/>
+  <!-- Roof shingles hint -->
+  <g opacity=".3" stroke="#4E342E" stroke-width="1">
+    <line x1="10" y1="50" x2="82" y2="50"/>
+    <line x1="18" y1="40" x2="74" y2="40"/>
+    <line x1="28" y1="28" x2="64" y2="28"/>
+  </g>
+  <!-- Chimney -->
+  <rect x="61" y="14" width="17" height="30" fill="#8D6E63" rx="1"/>
+  <rect x="59" y="12" width="21" height="6" fill="#795548" rx="1"/>
+  <!-- Smoke from chimney -->
+  <circle cx="69" cy="8" r="4" fill="rgba(200,200,200,.4)"/>
+  <circle cx="66" cy="3" r="3" fill="rgba(200,200,200,.3)"/>
+  <!-- Door -->
+  <rect x="32" y="88" width="26" height="34" rx="3" fill="#5D4037"/>
+  <path d="M32 100 Q45 88 58 100" fill="#4E342E"/>
+  <circle cx="54" cy="107" r="3.5" fill="#FFB300"/>
+  <!-- Windows -->
+  <rect x="8" y="65" width="24" height="18" rx="3" fill="#B3E5FC" stroke="#78909C" stroke-width="1.5"/>
+  <line x1="20" y1="65" x2="20" y2="83" stroke="white" stroke-width="2"/>
+  <line x1="8" y1="74" x2="32" y2="74" stroke="white" stroke-width="2"/>
+  <rect x="60" y="65" width="24" height="18" rx="3" fill="#B3E5FC" stroke="#78909C" stroke-width="1.5"/>
+  <line x1="72" y1="65" x2="72" y2="83" stroke="white" stroke-width="2"/>
+  <line x1="60" y1="74" x2="84" y2="74" stroke="white" stroke-width="2"/>
+  <!-- Window glow -->
+  <rect x="8" y="65" width="24" height="18" rx="3" fill="rgba(255,230,100,.12)"/>
+  <rect x="60" y="65" width="24" height="18" rx="3" fill="rgba(255,230,100,.12)"/>
+</svg>`;
+}
+
+function fencePostSVG() {
+  return `<svg viewBox="0 0 18 56" width="18" height="56" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="9,2 2,9 2,52 16,52 16,9" fill="#8D6E63" stroke="#5D4037" stroke-width="1.5"/>
+    <circle cx="9" cy="4" r="3.5" fill="#795548" stroke="#5D4037" stroke-width="1"/>
+    <line x1="2" y1="30" x2="16" y2="30" stroke="#5D4037" stroke-width="1" opacity=".4"/>
+  </svg>`;
+}
+
+function buildFence() {
+  const f = document.getElementById('fence');
+  f.innerHTML = '';
+  for (let i=0; i<5; i++) {
+    const d = document.createElement('div');
+    d.style.display = 'inline-block';
+    d.innerHTML = fencePostSVG();
+    f.appendChild(d);
+  }
+}
+
+function addClouds() {
+  const lawn = document.getElementById('lawn');
+  const clouds = [
+    {x:120,y:8,w:90,h:35},
+    {x:340,y:15,w:70,h:28},
+    {x:580,y:5,w:110,h:40},
+    {x:760,y:18,w:60,h:24},
+  ];
+  clouds.forEach(c => {
+    const el = document.createElement('div');
+    el.style.cssText = `position:absolute;left:${c.x}px;top:${c.y}px;width:${c.w}px;height:${c.h}px;background:rgba(255,255,255,0.75);border-radius:50%;z-index:2;`;
+    lawn.appendChild(el);
+    // Second puff
+    const el2 = document.createElement('div');
+    el2.style.cssText = `position:absolute;left:${c.x+c.w*.3}px;top:${c.y-c.h*.3}px;width:${c.w*.65}px;height:${c.h*.8}px;background:rgba(255,255,255,0.65);border-radius:50%;z-index:2;`;
+    lawn.appendChild(el2);
+  });
+}
+
+function addFlowers() {
+  const lawn = document.getElementById('lawn');
+  const positions = [155,185,220,260,310,380,440,500,560,630,700,760,820];
+  positions.forEach(x => {
+    const el = document.createElement('div');
+    el.className = 'flower';
+    el.style.left = x + 'px';
+    el.textContent = ['🌻','🌸','🌼'][Math.floor(Math.random()*3)];
+    lawn.appendChild(el);
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   MATH QUESTION GENERATOR
+══════════════════════════════════════════════════════ */
+function rng(lo, hi) { return lo + Math.floor(Math.random()*(hi-lo+1)); }
+
+function genQ(diff) {
+  const c = CFG[diff];
+  const op = c.ops[Math.floor(Math.random()*c.ops.length)];
+  const n = c.num;
+  let a,b,ans;
+  if (op==='+')      { a=rng(1,n); b=rng(1,n); ans=a+b; }
+  else if (op==='-') { a=rng(2,n+2); b=rng(1,a); ans=a-b; }
+  else               { a=rng(1,Math.min(n,9)); b=rng(1,Math.min(n,9)); ans=a*b; }
+
+  const ws = new Set(); let tries=0;
+  while(ws.size<2 && tries++<40) {
+    const off = rng(1,7)*(Math.random()<.5?1:-1);
+    const w = ans+off;
+    if(w!==ans && w>=0) ws.add(w);
+  }
+  if(ws.size<2) { ws.add(ans+1); ws.add(Math.max(0,ans-1)); }
+  // Ensure 3 unique answers
+  const choices = [ans,...[...ws].slice(0,2)].sort(()=>Math.random()-.5);
+
+  return { q:`${a} ${op} ${b} = ?`, ans, choices };
+}
+
+/* ══════════════════════════════════════════════════════
+   ZOMBIE MANAGEMENT
+══════════════════════════════════════════════════════ */
+function spawnZ() {
+  if (!G.running || G.spawned>=G.cfg.count) return;
+  const hp = rng(G.cfg.hpLo, G.cfg.hpHi);
+  let type = 'normal';
+  if(G.diff==='hard') {
+    const r=Math.random();
+    type = r<.33?'cone':r<.6?'bucket':'normal';
+  } else if(G.diff==='medium'&&Math.random()<.2) type='cone';
+
+  const id = G.nid++;
+  const maxHp = hp;
+  const div = document.createElement('div');
+  div.className = 'zombie';
+  div.id = 'z'+id;
+
+  const qb = document.createElement('div');
+  qb.className = 'z-qb';
+
+  const hp_bar = document.createElement('div');
+  hp_bar.className = 'z-hp';
+  const hf = document.createElement('div');
+  hf.className = 'z-hf';
+  hf.style.width = '100%';
+  hp_bar.appendChild(hf);
+
+  const spr = document.createElement('div');
+  spr.className = 'z-spr';
+  spr.innerHTML = zSVG(type, hp, maxHp);
+
+  div.appendChild(qb);
+  div.appendChild(hp_bar);
+  div.appendChild(spr);
+
+  const lawn = document.getElementById('lawn');
+  const lw = lawn.clientWidth || 900;
+  const yV = rng(-15, 15);
+  const spd = G.cfg.spd * (0.82 + Math.random()*.36);
+
+  const obj = { id, div, qb, hp_bar, hf, spr, type, hp, maxHp, x:lw+60, spd, yV, dead:false, active:false };
+  div.style.left = obj.x+'px';
+  div.style.bottom = (63+yV)+'px';
+
+  document.getElementById('zl').appendChild(div);
+  G.zombies.push(obj);
+  G.spawned++;
+  updateHUD();
+}
+
+/* ══════════════════════════════════════════════════════
+   GAME LOOP
+══════════════════════════════════════════════════════ */
+function loop(ts) {
+  if (!G.running) return;
+  const dt = G.lastT ? (ts-G.lastT)/1000 : 0;
+  G.lastT = ts;
+
+  let over = false;
+  for(const z of G.zombies) {
+    if(z.dead || G.frozen) continue;
+    z.x -= z.spd*dt;
+    z.div.style.left = z.x+'px';
+    if(z.x < EDGE) { over=true; break; }
+  }
+
+  if(over) { triggerGameOver(); return; }
+  G.raf = requestAnimationFrame(loop);
+}
+
+/* ══════════════════════════════════════════════════════
+   QUESTION SYSTEM
+══════════════════════════════════════════════════════ */
+function frontZ() {
+  return G.zombies.filter(z=>!z.dead).sort((a,b)=>a.x-b.x)[0];
+}
+
+function setQ() {
+  const fz = frontZ();
+  if(!fz) {
+    document.getElementById('qt').textContent = '...';
+    setAns(false); return;
+  }
+  // Deactivate all
+  G.zombies.forEach(z=>{ z.active=false; z.qb.style.display='none'; });
+  // Activate front
+  fz.active = true;
+  const q = genQ(G.diff);
+  G.curQ = q; G.choices = q.choices;
+  fz.qb.textContent = q.q;
+  fz.qb.style.display = 'block';
+  document.getElementById('qt').textContent = q.q;
+  q.choices.forEach((c,i)=>{ const b=document.getElementById('a'+i); b.textContent=c; b.style.background=''; });
+  setAns(true);
+  G.locked = false;
+}
+
+/* ══════════════════════════════════════════════════════
+   ANSWER HANDLING
+══════════════════════════════════════════════════════ */
+function answer(idx) {
+  if(G.locked || !G.running || !G.curQ) return;
+  if(actx && actx.state==='suspended') actx.resume();
+  G.locked = true; setAns(false);
+
+  const ok = G.choices[idx] === G.curQ.ans;
+  const z = G.zombies.find(x=>x.active && !x.dead);
+  if(!z) return;
+
+  if(ok) {
+    sCorrect();
+    G.score += 10 + G.streak*3; G.streak++;
+    if(G.streak>G.best) G.best=G.streak;
+    if(G.streak>=5 && !G.fReady) {
+      G.fReady=true;
+      document.getElementById('fbtn').style.display='inline-block';
+    }
+    z.hp--;
+    z.hf.style.width = Math.max(0,(z.hp/z.maxHp)*100)+'%';
+    z.div.classList.remove('z-heal'); z.div.classList.add('z-hit');
+    setTimeout(()=>z.div.classList.remove('z-hit'),440);
+    if(z.hp<=0) killZ(z);
+    else setTimeout(()=>{ if(G.running) setQ(); }, 520);
+  } else {
+    sWrong();
+    G.streak=0;
+    z.hp++;
+    z.maxHp = Math.max(z.maxHp, z.hp);
+    z.hf.style.width = (z.hp/z.maxHp*100)+'%';
+    z.hf.style.background = 'linear-gradient(90deg,#4CAF50,#8BC34A)';
+    z.spd = Math.min(z.spd*1.18,130);
+    z.div.classList.remove('z-hit'); z.div.classList.add('z-heal');
+    setTimeout(()=>{ z.div.classList.remove('z-heal'); z.hf.style.background=''; if(G.running) setQ(); }, 720);
+  }
+  updateHUD();
+}
+
+function killZ(z) {
+  z.dead=true; G.killed++; G.score+=50;
+  z.div.classList.add('z-die'); z.div.classList.remove('z-hit','z-heal');
+  z.active=false; z.qb.style.display='none';
+  setTimeout(()=>{
+    z.div.parentNode&&z.div.parentNode.removeChild(z.div);
+    G.zombies=G.zombies.filter(x=>x.id!==z.id);
+    checkWin();
+    if(G.running) setQ();
+  }, 920);
+  updateHUD();
+}
+
+function checkWin() {
+  if(!G.running) return;
+  if(G.spawned<G.cfg.count) return;
+  if(G.zombies.filter(z=>!z.dead).length>0) return;
+  if(G.killed>=G.cfg.count) setTimeout(triggerVictory, 700);
+}
+
+/* ══════════════════════════════════════════════════════
+   FREEZE POWER-UP
+══════════════════════════════════════════════════════ */
+function doFreeze() {
+  if(!G.fReady||G.frozen||!G.running) return;
+  G.fReady=false; G.frozen=true;
+  document.getElementById('fbtn').style.display='none';
+  sFreeze();
+  document.getElementById('fov').style.display='block';
+  // Spawn snowflakes
+  const lawn=document.getElementById('lawn');
+  const sfs=[];
+  for(let i=0;i<28;i++) {
+    const s=document.createElement('div');
+    s.className='sf';
+    s.textContent=['❄','❅','❆','✦','*'][Math.floor(Math.random()*5)];
+    s.style.cssText=`left:${Math.random()*95}%;top:-10px;font-size:${12+Math.random()*18}px;color:${['#E1F5FE','#B3E5FC','#81D4FA','white'][Math.floor(Math.random()*4)]};animation-duration:${1.5+Math.random()*2.5}s;animation-delay:${Math.random()*1.5}s;`;
+    lawn.appendChild(s);
+    sfs.push(s);
+  }
+  G.fTO=setTimeout(()=>{
+    G.frozen=false;
+    document.getElementById('fov').style.display='none';
+    sfs.forEach(s=>s.parentNode&&s.parentNode.removeChild(s));
+    G.fTO=null;
+  },5000);
+}
+
+/* ══════════════════════════════════════════════════════
+   WIN / GAME OVER
+══════════════════════════════════════════════════════ */
+function stopAll() {
+  bgStop();
+  if(G.raf){cancelAnimationFrame(G.raf);G.raf=null;}
+  if(G.spawnTmr){clearInterval(G.spawnTmr);G.spawnTmr=null;}
+  if(G.fTO){clearTimeout(G.fTO);G.fTO=null;}
+}
+
+function triggerVictory() {
+  if(!G.running) return;
+  G.running=false; stopAll(); sVictory();
+  setTimeout(()=>{
+    document.getElementById('gs').style.display='none';
+    document.getElementById('vscEl').textContent=`Score: ${G.score}  ·  Best Streak: ${G.best}  ·  ${CFG[G.diff].count} zombies slain!`;
+    const v=document.getElementById('vs');
+    v.style.display='flex';
+  },500);
+}
+
+function triggerGameOver() {
+  if(!G.running) return;
+  G.running=false; stopAll(); sGameOver();
+  setTimeout(()=>{
+    document.getElementById('gs').style.display='none';
+    document.getElementById('goscEl').textContent=`Score: ${G.score}  ·  Kills: ${G.killed}/${G.cfg.count}`;
+    document.getElementById('gos').style.display='flex';
+  },1000);
+}
+
+function goMenu() {
+  stopAll(); G.running=false;
+  ['vs','gos','gs'].forEach(id=>{ const e=document.getElementById(id); e.style.display='none'; });
+  document.getElementById('ss').style.display='flex';
+}
+
+/* ══════════════════════════════════════════════════════
+   HUD
+══════════════════════════════════════════════════════ */
+function updateHUD() {
+  document.getElementById('hS').textContent = G.score;
+  document.getElementById('hK').textContent = G.killed+'/'+(G.cfg?G.cfg.count:'?');
+  const st=document.getElementById('hSt');
+  st.textContent=G.streak;
+  st.style.color=G.streak>=5?'#FFD700':G.streak>=3?'#FFA726':'#FFF176';
+  st.style.textShadow=G.streak>=5?'0 0 10px #FFD700':'none';
+}
+
+function setAns(on) {
+  [0,1,2].forEach(i=>{
+    const b=document.getElementById('a'+i);
+    b.disabled=!on; b.style.opacity=on?'1':'.4';
+    b.style.cursor=on?'pointer':'default';
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   MAIN START
+══════════════════════════════════════════════════════ */
+function startGame(diff) {
+  stopAll();
+  G = {
+    diff, cfg:CFG[diff],
+    zombies:[], nid:0, spawned:0, killed:0,
+    score:0, streak:0, best:0,
+    fReady:false, frozen:false, fTO:null,
+    spawnTmr:null, curQ:null, choices:[],
+    locked:false, running:true, raf:null, lastT:0
+  };
+
+  // Show game screen
+  ['ss','vs','gos'].forEach(id=>document.getElementById(id).style.display='none');
+  const gs=document.getElementById('gs'); gs.style.display='flex';
+
+  // Reset lawn
+  document.getElementById('zl').innerHTML='';
+  document.getElementById('fov').style.display='none';
+  document.getElementById('fbtn').style.display='none';
+  document.getElementById('qt').textContent='🧟 Here they come!';
+  document.getElementById('player').innerHTML=houseSVG();
+  buildFence();
+
+  // Add decorative elements
+  const lawn=document.getElementById('lawn');
+  [...lawn.querySelectorAll('.cloud,.flower,[data-deco]')].forEach(el=>el.remove());
+  addClouds();
+  addFlowers();
+
+  setAns(false); updateHUD();
+
+  // Spawn first zombie immediately, rest on interval
+  spawnZ();
+  G.spawnTmr=setInterval(()=>{
+    if(!G.running){clearInterval(G.spawnTmr);return;}
+    if(G.spawned<G.cfg.count) spawnZ();
+    else { clearInterval(G.spawnTmr); G.spawnTmr=null; }
+  }, G.cfg.ms);
+
+  // Show first question after a brief delay
+  setTimeout(()=>{ if(G.running) setQ(); }, 1400);
+
+  // Start loops
+  G.raf=requestAnimationFrame(loop);
+  bgStart();
+}
+
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE SCALING
+══════════════════════════════════════════════════════ */
+function scaleGame() {
+  const gw=document.getElementById('gw');
+  const sx=window.innerWidth/906;
+  const sy=window.innerHeight/566;
+  const sc=Math.min(sx,sy,1.4); // allow scaling up to 1.4x
+  gw.style.transform=`scale(${sc})`;
+}
+window.addEventListener('resize',scaleGame);
+scaleGame();
+
+/* ══════════════════════════════════════════════════════
+   PWA: SERVICE WORKER REGISTRATION
+══════════════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('✅ SW registered, scope:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   PWA: INSTALL PROMPT (Android / Chrome)
+══════════════════════════════════════════════════════ */
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show the banner after a short delay (don't interrupt gameplay)
+  setTimeout(() => {
+    const banner = document.getElementById('installBanner');
+    if (banner) banner.style.display = 'flex';
+  }, 2500);
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  console.log('Install outcome:', outcome);
+  deferredInstallPrompt = null;
+  document.getElementById('installBanner').style.display = 'none';
+});
+
+document.getElementById('dismissBtn').addEventListener('click', () => {
+  document.getElementById('installBanner').style.display = 'none';
+});
+
+// Hide banner if already installed
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').style.display = 'none';
+  console.log('PWA installed!');
+});
+
+/* ══════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════ */
+document.getElementById('player').innerHTML=houseSVG();
+buildFence();
+</script>
+</body>
+</html>

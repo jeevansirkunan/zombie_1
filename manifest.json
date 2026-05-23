@@ -1,0 +1,20 @@
+{
+  "name": "Zombie Math Tower Defense",
+  "short_name": "Zombie Math",
+  "description": "Defend your brain by answering math questions to shoot down zombies!",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#050d05",
+  "theme_color": "#76FF03",
+  "orientation": "landscape",
+  "categories": ["games", "education"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
