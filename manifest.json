@@ -4,7 +4,7 @@
   "description": "Defend your brain by answering math questions to shoot down zombies!",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#050d05",
   "theme_color": "#76FF03",
   "orientation": "landscape",
