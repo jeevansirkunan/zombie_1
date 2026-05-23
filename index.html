@@ -20,8 +20,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Zombie Math">
 <link rel="apple-touch-icon" href="./icon.svg">
-<!-- iOS splash-screen color matches game background -->
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<!-- Extend content behind iOS status bar for true fullscreen feel -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
 <!-- Manifest -->
 <link rel="manifest" href="./manifest.json">
@@ -1248,16 +1249,11 @@ function startGame(diff) {
 function scaleGame() {
   const gw = document.getElementById('gw');
   const W = 900, H = 560;
-
-  // visualViewport is the most accurate on mobile —
-  // it accounts for the browser's address bar, bottom nav,
-  // and keyboard. Fall back to window dimensions on desktop.
-  const vw = (window.visualViewport ? window.visualViewport.width  : window.innerWidth);
-  const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
-
-  // Subtract a small margin so the border isn't clipped on phone edges
-  const margin = 4;
-  const sc = Math.min((vw - margin) / W, (vh - margin) / H);
+  // dvw/dvh = "dynamic" viewport units — most accurate on mobile PWA,
+  // accounts for any remaining browser chrome (e.g. iOS status bar)
+  const vw = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const sc = Math.min(vw / W, vh / H);
   gw.style.transform = `scale(${sc})`;
 }
 
